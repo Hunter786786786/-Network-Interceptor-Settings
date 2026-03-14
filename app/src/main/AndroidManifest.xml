@@ -7,29 +7,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NetworkInterceptor">
 
-        <!-- Xposed Module Declaration -->
         <meta-data
             android:name="xposedmodule"
             android:value="true" />
         
         <meta-data
             android:name="xposeddescription"
-            android:value="Educational Network Interceptor - Learn Xposed Development" />
+            android:value="Network Interceptor" />
         
         <meta-data
             android:name="xposedminversion"
-            android:value="93" />
-        
-        <!-- Target app scope -->
-        <meta-data
-            android:name="xposedscope"
-            android:value="delivery.samurai.android" />
+            android:value="82" />
 
-        <!-- Settings Activity -->
         <activity
             android:name=".SettingsActivity"
-            android:exported="true"
-            android:theme="@style/Theme.NetworkInterceptor">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
