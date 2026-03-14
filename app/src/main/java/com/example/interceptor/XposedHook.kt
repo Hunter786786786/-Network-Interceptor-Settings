@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import com.highcapable.yukihookapi.YukiHookAPI
 import com.highcapable.yukihookapi.annotation.xposed.InjectYukiHookWithXposed
 import com.highcapable.yukihookapi.hook.factory.encase
+import com.highcapable.yukihookapi.hook.type.android.ApplicationClass
 import com.highcapable.yukihookapi.hook.xposed.proxy.IYukiHookXposedInit
 import org.json.JSONObject
 import java.io.File
@@ -29,7 +30,6 @@ class XposedHook : IYukiHookXposedInit {
                 return file
             }
         }
-        Log.w("XposedHook", "Prefs not found")
         return null
     }
 
@@ -82,38 +82,60 @@ class XposedHook : IYukiHookXposedInit {
     override fun onHook() = encase {
         // শুধু Samurai অ্যাপে
         loadApp("delivery.samurai.android") {
-            Log.i("XposedHook", "Samurai loaded")
+            Log.i("XposedHook", "Samurai app loaded")
             
             // Application onCreate হুক
-            Application::class.java.hook {
+            ApplicationClass.hook {
                 injectMember {
                     method {
                         name = "onCreate"
                     }
                     afterHook {
-                        val app = instance as Application
-                        Log.i("XposedHook", "App created: ${app.packageName}")
+                        val app = instance<Application>()
+                        Log.i("XposedHook", "App started: ${app.packageName}")
+                        
+                        // এখানে OkHttp হুক করুন
+                        hookOkHttp(app)
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun hookOkHttp(app: Application) {
+        try {
+            // OkHttpClient.Builder.build() হুক
+            findClass("okhttp3.OkHttpClient\$Builder") {
+                injectMember {
+                    method {
+                        name = "build"
+                    }
+                    afterHook {
+                        Log.i("XposedHook", "OkHttpClient built")
                     }
                 }
             }
             
-            // OkHttp Response Body হুক
+            // Response.body().string() হুক
             findClass("okhttp3.ResponseBody") {
                 injectMember {
                     method {
                         name = "string"
                     }
                     afterHook {
-                        val body = result as? String ?: return@afterHook
-                        Log.i("XposedHook", "Response: ${body.take(200)}")
+                        val bodyString = result as? String ?: return@afterHook
+                        Log.i("XposedHook", "Response: ${bodyString.take(100)}")
                         
-                        // JSON চেক
-                        if (body.contains("pickupDistanceInKm") || body.contains("order")) {
-                            parseOrder(body, appContext)
+                        if (bodyString.contains("pickupDistanceInKm")) {
+                            parseOrder(bodyString, app.applicationContext)
                         }
                     }
                 }
             }
+            
+            Log.i("XposedHook", "OkHttp hooked successfully")
+        } catch (e: Exception) {
+            Log.e("XposedHook", "OkHttp hook failed: ${e.message}")
         }
     }
     
@@ -148,8 +170,6 @@ class XposedHook : IYukiHookXposedInit {
                     "Order Accepted!",
                     "ID:$id | P:${pickupKm}km | D:${deliveryKm}km"
                 )
-                
-                // TODO: Auto-accept API call here
             } else {
                 Log.i("XposedHook", "Too far")
             }
