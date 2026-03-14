@@ -46,19 +46,24 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
       
-    # List files to debug
-    - name: List APK files
+    # Create debug keystore
+    - name: Create Debug Keystore
       run: |
-        echo "Debug APKs:"
-        ls -la app/build/outputs/apk/debug/
-        echo "Release APKs:"
-        ls -la app/build/outputs/apk/release/
+        mkdir -p ~/.android
+        keytool -genkey -v \
+          -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey \
+          -storepass android \
+          -keypass android \
+          -keyalg RSA \
+          -keysize 2048 \
+          -validity 10000 \
+          -dname "CN=Android Debug,O=Android,C=US"
       
     # Sign Release APK with debug key
     - name: Sign Release APK
       run: |
         cd app/build/outputs/apk/release
-        # Find the APK file (handles any naming)
         for apk in *.apk; do
           if [ -f "$apk" ]; then
             echo "Signing: $apk"
@@ -69,7 +74,6 @@ jobs:
               --key-pass pass:android \
               --out "signed-$apk" \
               "$apk"
-            # Replace original with signed
             mv "signed-$apk" "$apk"
             echo "Signed: $apk"
           fi
