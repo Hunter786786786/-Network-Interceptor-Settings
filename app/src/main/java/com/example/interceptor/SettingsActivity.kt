@@ -8,9 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.interceptor.databinding.ActivitySettingsBinding
 import java.io.File
 
-/**
- * Settings Activity for Network Interceptor
- */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
@@ -21,25 +18,23 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // FIX: MODE_PRIVATE ব্যবহার করুন, তারপর ফাইল পারমিশন সেট করুন
         prefs = getSharedPreferences("interceptor_prefs", MODE_PRIVATE)
         
         setupUI()
         loadSettings()
-        makeWorldReadable() // প্রথমবার পারমিশন সেট করুন
     }
 
     private fun setupUI() {
         binding.switchMaster.setOnCheckedChangeListener { _, isChecked ->
             saveBoolean("master_switch", isChecked)
-            showToast(if (isChecked) "Interceptor ON" else "Interceptor OFF")
+            showToast(if (isChecked) "ON" else "OFF")
         }
 
         binding.seekbarPickup.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val distance = progress / 10.0f
                 binding.tvPickupValue.text = String.format("%.1fkm", distance)
-                saveFloat("max_pickup_distance", distance)
+                if (fromUser) saveFloat("max_pickup_distance", distance)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -49,7 +44,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val distance = progress / 10.0f
                 binding.tvDeliveryValue.text = String.format("%.1fkm", distance)
-                saveFloat("max_delivery_distance", distance)
+                if (fromUser) saveFloat("max_delivery_distance", distance)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -57,7 +52,7 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.btnSave.setOnClickListener {
             makeWorldReadable()
-            Toast.makeText(this, "Settings Saved!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -84,21 +79,12 @@ class SettingsActivity : AppCompatActivity() {
         makeWorldReadable()
     }
 
-    /**
-     * FIX: ফাইল পারমিশন সেট করে Xposed-এর জন্য readable করা
-     */
     private fun makeWorldReadable() {
         try {
-            val dataDir = applicationInfo.dataDir
-            val prefsDir = File(dataDir, "shared_prefs")
-            val prefsFile = File(prefsDir, "interceptor_prefs.xml")
-            
+            val prefsFile = File(filesDir.parent, "shared_prefs/interceptor_prefs.xml")
             if (prefsFile.exists()) {
-                // XML ফাইলটি সবার জন্য readable করুন
                 prefsFile.setReadable(true, false)
-                // Directory-ও executable করুন
-                prefsDir.setExecutable(true, false)
-                prefsDir.setReadable(true, false)
+                prefsFile.parentFile?.setExecutable(true, false)
             }
         } catch (e: Exception) {
             e.printStackTrace()
