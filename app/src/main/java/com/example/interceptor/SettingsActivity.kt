@@ -27,7 +27,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupUI() {
         binding.switchMaster.setOnCheckedChangeListener { _, isChecked ->
             saveBoolean("master_switch", isChecked)
-            showToast(if (isChecked) "ON" else "OFF")
+            Toast.makeText(this, if (isChecked) "ON" else "OFF", Toast.LENGTH_SHORT).show()
         }
 
         binding.seekbarPickup.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -57,16 +57,15 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        val masterOn = prefs.getBoolean("master_switch", false)
-        binding.switchMaster.isChecked = masterOn
+        binding.switchMaster.isChecked = prefs.getBoolean("master_switch", false)
+        
+        val pickup = prefs.getFloat("max_pickup_distance", 5.0f)
+        binding.seekbarPickup.progress = (pickup * 10).toInt()
+        binding.tvPickupValue.text = String.format("%.1fkm", pickup)
 
-        val pickupDist = prefs.getFloat("max_pickup_distance", 5.0f)
-        binding.seekbarPickup.progress = (pickupDist * 10).toInt()
-        binding.tvPickupValue.text = String.format("%.1fkm", pickupDist)
-
-        val deliveryDist = prefs.getFloat("max_delivery_distance", 10.0f)
-        binding.seekbarDelivery.progress = (deliveryDist * 10).toInt()
-        binding.tvDeliveryValue.text = String.format("%.1fkm", deliveryDist)
+        val delivery = prefs.getFloat("max_delivery_distance", 10.0f)
+        binding.seekbarDelivery.progress = (delivery * 10).toInt()
+        binding.tvDeliveryValue.text = String.format("%.1fkm", delivery)
     }
 
     private fun saveBoolean(key: String, value: Boolean) {
@@ -81,17 +80,12 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun makeWorldReadable() {
         try {
-            val prefsFile = File(filesDir.parent, "shared_prefs/interceptor_prefs.xml")
-            if (prefsFile.exists()) {
-                prefsFile.setReadable(true, false)
-                prefsFile.parentFile?.setExecutable(true, false)
+            val file = File(filesDir.parent, "shared_prefs/interceptor_prefs.xml")
+            if (file.exists()) {
+                file.setReadable(true, false)
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
-
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }
