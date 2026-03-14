@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Network Interceptor</string>
+    <string name="master_switch">Master Switch</string>
+    <string name="master_switch_desc">Enable/Disable interception</string>
+    <string name="max_pickup">Max Pickup Distance</string>
+    <string name="max_delivery">Max Delivery Distance</string>
+    <string name="save">Save Settings</string>
+    <string name="educational">Educational Purpose Only</string>
+</resources>
