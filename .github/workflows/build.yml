@@ -46,22 +46,34 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
       
-    # Sign Release APK with debug key (for easy installation)
+    # List files to debug
+    - name: List APK files
+      run: |
+        echo "Debug APKs:"
+        ls -la app/build/outputs/apk/debug/
+        echo "Release APKs:"
+        ls -la app/build/outputs/apk/release/
+      
+    # Sign Release APK with debug key
     - name: Sign Release APK
       run: |
         cd app/build/outputs/apk/release
-        # Find the unsigned APK
-        UNSIGNED_APK=$(ls *.apk | grep -v signed | head -1)
-        # Sign with debug keystore
-        $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
-          --ks ~/.android/debug.keystore \
-          --ks-key-alias androiddebugkey \
-          --ks-pass pass:android \
-          --key-pass pass:android \
-          --out app-release-signed.apk \
-          $UNSIGNED_APK
-        # Remove unsigned APK
-        rm $UNSIGNED_APK
+        # Find the APK file (handles any naming)
+        for apk in *.apk; do
+          if [ -f "$apk" ]; then
+            echo "Signing: $apk"
+            $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
+              --ks ~/.android/debug.keystore \
+              --ks-key-alias androiddebugkey \
+              --ks-pass pass:android \
+              --key-pass pass:android \
+              --out "signed-$apk" \
+              "$apk"
+            # Replace original with signed
+            mv "signed-$apk" "$apk"
+            echo "Signed: $apk"
+          fi
+        done
         
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
