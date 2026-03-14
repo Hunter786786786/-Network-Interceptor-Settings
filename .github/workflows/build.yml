@@ -25,7 +25,6 @@ jobs:
         distribution: 'temurin'
         cache: gradle
     
-    # এই স্টেপটি যোগ করুন 👇
     - name: Setup Gradle Wrapper
       run: |
         if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
@@ -47,6 +46,23 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
       
+    # Sign Release APK with debug key (for easy installation)
+    - name: Sign Release APK
+      run: |
+        cd app/build/outputs/apk/release
+        # Find the unsigned APK
+        UNSIGNED_APK=$(ls *.apk | grep -v signed | head -1)
+        # Sign with debug keystore
+        $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
+          --ks ~/.android/debug.keystore \
+          --ks-key-alias androiddebugkey \
+          --ks-pass pass:android \
+          --key-pass pass:android \
+          --out app-release-signed.apk \
+          $UNSIGNED_APK
+        # Remove unsigned APK
+        rm $UNSIGNED_APK
+        
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
