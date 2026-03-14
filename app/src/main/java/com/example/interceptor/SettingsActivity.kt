@@ -83,6 +83,7 @@ class SettingsActivity : AppCompatActivity() {
             val file = File(filesDir.parent, "shared_prefs/interceptor_prefs.xml")
             if (file.exists()) {
                 file.setReadable(true, false)
+                file.parentFile?.setExecutable(true, false)
             }
         } catch (e: Exception) {
             e.printStackTrace()
