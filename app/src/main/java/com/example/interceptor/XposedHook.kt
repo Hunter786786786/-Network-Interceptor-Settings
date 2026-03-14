@@ -9,21 +9,13 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.highcapable.yukihookapi.YukiHookAPI
 import com.highcapable.yukihookapi.annotation.xposed.InjectYukiHookWithXposed
-import com.highcapable.yukihookapi.hook.factory.config
 import com.highcapable.yukihookapi.hook.factory.encase
 import com.highcapable.yukihookapi.hook.xposed.proxy.IYukiHookXposedInit
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
 import org.json.JSONObject
 import java.io.File
 
 @InjectYukiHookWithXposed
 class XposedHook : IYukiHookXposedInit {
-
-    override fun onInit() = YukiHookAPI.config {
-        isDebug = true
-    }
 
     private fun getPrefsFile(): File? {
         val paths = listOf(
@@ -47,12 +39,10 @@ class XposedHook : IYukiHookXposedInit {
         
         try {
             val content = file.readText()
-            // boolean
             "<boolean name=\"([^\"]+)\" value=\"([^\"]+)\" />".toRegex()
                 .findAll(content).forEach { 
                     result[it.groupValues[1]] = it.groupValues[2] 
                 }
-            // float
             "<float name=\"([^\"]+)\" value=\"([^\"]+)\" />".toRegex()
                 .findAll(content).forEach { 
                     result[it.groupValues[1]] = it.groupValues[2] 
@@ -83,38 +73,43 @@ class XposedHook : IYukiHookXposedInit {
                 .build()
             
             nm.notify(System.currentTimeMillis().toInt(), notification)
-            Log.i("XposedHook", "Notification shown: $title")
+            Log.i("XposedHook", "Notification: $title")
         } catch (e: Exception) {
-            Log.e("XposedHook", "Notification error: ${e.message}")
+            Log.e("XposedHook", "Notify error: ${e.message}")
         }
     }
 
     override fun onHook() = encase {
-        // শুধু Samurai অ্যাপে হুক
+        // শুধু Samurai অ্যাপে
         loadApp("delivery.samurai.android") {
-            Log.i("XposedHook", "Samurai app loaded")
+            Log.i("XposedHook", "Samurai loaded")
             
-            // OkHttp Response হুক করুন
-            findClass("okhttp3.Response").hook {
+            // Application onCreate হুক
+            Application::class.java.hook {
                 injectMember {
                     method {
-                        name = "body"
+                        name = "onCreate"
                     }
                     afterHook {
-                        val response = instance
-                        Log.i("XposedHook", "Response intercepted")
+                        val app = instance as Application
+                        Log.i("XposedHook", "App created: ${app.packageName}")
+                    }
+                }
+            }
+            
+            // OkHttp Response Body হুক
+            findClass("okhttp3.ResponseBody") {
+                injectMember {
+                    method {
+                        name = "string"
+                    }
+                    afterHook {
+                        val body = result as? String ?: return@afterHook
+                        Log.i("XposedHook", "Response: ${body.take(200)}")
                         
-                        // বডি পড়ুন
-                        try {
-                            val body = response?.javaClass?.getMethod("body")?.invoke(response)
-                            val source = body?.javaClass?.getMethod("source")?.invoke(body)
-                            val buffer = source?.javaClass?.getMethod("buffer")?.invoke(source)
-                            val clone = buffer?.javaClass?.getMethod("clone")?.invoke(buffer)
-                            val content = clone?.javaClass?.getMethod("readUtf8")?.invoke(clone) as? String
-                            
-                            content?.let { parseOrder(it, appContext) }
-                        } catch (e: Exception) {
-                            Log.e("XposedHook", "Body read error: ${e.message}")
+                        // JSON চেক
+                        if (body.contains("pickupDistanceInKm") || body.contains("order")) {
+                            parseOrder(body, appContext)
                         }
                     }
                 }
@@ -125,18 +120,16 @@ class XposedHook : IYukiHookXposedInit {
     private fun parseOrder(json: String, context: Context) {
         try {
             val obj = JSONObject(json)
-            
-            // অর্ডার ডেটা খুঁজুন
             val payload = obj.optJSONObject("payload") ?: obj
+            
             val id = payload.optString("id", "")
             val pickupKm = payload.optDouble("pickupDistanceInKm", 999.0)
             val deliveryKm = payload.optDouble("deliveryDistanceInKm", 999.0)
             
             if (id.isEmpty()) return
             
-            Log.i("XposedHook", "Order: $id, Pickup: $pickupKm, Delivery: $deliveryKm")
+            Log.i("XposedHook", "Order: $id, P:$pickupKm, D:$deliveryKm")
             
-            // Preference পড়ুন
             val prefs = readPrefs()
             val masterOn = prefs["master_switch"]?.toBoolean() ?: false
             val maxPickup = prefs["max_pickup_distance"]?.toFloat() ?: 5.0f
@@ -147,23 +140,19 @@ class XposedHook : IYukiHookXposedInit {
                 return
             }
             
-            // চেক করুন
             if (pickupKm <= maxPickup && deliveryKm <= maxDelivery) {
-                Log.i("XposedHook", "✅ MATCH! Auto-accepting...")
+                Log.i("XposedHook", "MATCH! Auto-accept")
                 
-                // নোটিফিকেশন দেখান
                 showNotification(
                     context,
                     "Order Accepted!",
-                    "ID: $id | Pickup: ${pickupKm}km | Delivery: ${deliveryKm}km"
+                    "ID:$id | P:${pickupKm}km | D:${deliveryKm}km"
                 )
                 
-                // TODO: এখানে অটো এক্সেপ্ট API কল করুন
-                // autoAcceptOrder(id)
+                // TODO: Auto-accept API call here
             } else {
-                Log.i("XposedHook", "❌ Too far")
+                Log.i("XposedHook", "Too far")
             }
-            
         } catch (e: Exception) {
             Log.e("XposedHook", "Parse error: ${e.message}")
         }
